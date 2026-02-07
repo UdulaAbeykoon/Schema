@@ -1,5 +1,7 @@
+import asyncio
 import base64
 import time
+import re
 from typing import Any, Awaitable, Callable, Dict, List
 from openai.types.chat import ChatCompletionMessageParam
 from google import genai
@@ -19,7 +21,17 @@ DEBUG_GEMINI = False
 
 
 def get_gemini_api_model_name(model: Llm) -> str:
-    if model in [Llm.GEMINI_3_FLASH_PREVIEW_HIGH, Llm.GEMINI_3_FLASH_PREVIEW_MINIMAL]:
+    if model == Llm.GEMINI_2_5_FLASH:
+        return "gemini-2.5-flash"
+    elif model == Llm.GEMINI_1_5_FLASH:
+        return "gemini-1.5-flash"
+    elif model == Llm.GEMINI_1_5_PRO:
+        return "gemini-1.5-pro"
+    elif model == Llm.GEMINI_2_0_FLASH:
+        return "gemini-2.0-flash"
+    elif model == Llm.GEMINI_2_5_PRO:
+        return "gemini-2.5-pro"
+    elif model in [Llm.GEMINI_3_FLASH_PREVIEW_HIGH, Llm.GEMINI_3_FLASH_PREVIEW_MINIMAL]:
         return "gemini-3-flash-preview"
     elif model in [Llm.GEMINI_3_PRO_PREVIEW_HIGH, Llm.GEMINI_3_PRO_PREVIEW_LOW]:
         return "gemini-3-pro-preview"
@@ -162,6 +174,15 @@ def convert_message_to_gemini_content(
     return types.Content(role=gemini_role, parts=parts)  # type: ignore
 
 
+def extract_retry_delay(error_message: str) -> float:
+    """Extract retry delay from a 429 error message."""
+    # Look for patterns like "Please retry in 6.505164305s" or "retryDelay": "6s"
+    match = re.search(r'retry.*?(\d+(?:\.\d+)?)\s*s', str(error_message), re.IGNORECASE)
+    if match:
+        return float(match.group(1))
+    return 10.0  # Default retry delay
+
+
 async def stream_gemini_response(
     messages: List[ChatCompletionMessageParam],
     api_key: str,
@@ -251,6 +272,13 @@ async def stream_gemini_response(
                 thinking_level="low", include_thoughts=True
             ),
         )
+    elif model in [Llm.GEMINI_2_5_FLASH, Llm.GEMINI_1_5_FLASH, Llm.GEMINI_1_5_PRO, Llm.GEMINI_2_0_FLASH, Llm.GEMINI_2_5_PRO]:
+        # Gemini 1.5/2.0/2.5 GA models - no thinking mode
+        config = types.GenerateContentConfig(
+            temperature=0,
+            max_output_tokens=16000,
+            system_instruction=system_prompt,
+        )
     else:
         config = types.GenerateContentConfig(
             temperature=0,
@@ -261,25 +289,45 @@ async def stream_gemini_response(
     # Map variant model names to actual API model names
     api_model_name = get_gemini_api_model_name(model)
 
-    async for chunk in await client.aio.models.generate_content_stream(
-        model=api_model_name,
-        contents=gemini_contents,
-        config=config,
-    ):
-        if chunk.candidates and len(chunk.candidates) > 0:
-            for part in chunk.candidates[0].content.parts:
-                if not part.text:
-                    continue
-                elif part.thought:
-                    if thinking_callback:
-                        await thinking_callback(part.text)
-                    else:
-                        print(f"\n=== Gemini Thinking Summary ({model.value}) ===")
-                        print(part.text)
-                        print("=" * 50)
-                else:
-                    full_response += part.text
-                    await callback(part.text)
+    # Simple retry for brief rate limits (max 10s wait)
+    max_retries = 2
+    
+    for attempt in range(max_retries):
+        try:
+            async for chunk in await client.aio.models.generate_content_stream(
+                model=api_model_name,
+                contents=gemini_contents,
+                config=config,
+            ):
+                if chunk.candidates and len(chunk.candidates) > 0:
+                    for part in chunk.candidates[0].content.parts:
+                        if not part.text:
+                            continue
+                        elif part.thought:
+                            if thinking_callback:
+                                await thinking_callback(part.text)
+                            else:
+                                print(f"\n=== Gemini Thinking Summary ({model.value}) ===")
+                                print(part.text)
+                                print("=" * 50)
+                        else:
+                            full_response += part.text
+                            await callback(part.text)
+            
+            # Success - break out of retry loop
+            break
+            
+        except Exception as e:
+            error_str = str(e)
+            if ("429" in error_str or "RESOURCE_EXHAUSTED" in error_str) and attempt < max_retries - 1:
+                retry_delay = min(extract_retry_delay(error_str), 10.0)  # Cap at 10s
+                print(f"Rate limited. Quick retry in {retry_delay:.1f}s...")
+                await asyncio.sleep(retry_delay)
+                continue
+            # Fail fast with clear message
+            if "429" in error_str:
+                raise Exception(f"Gemini API rate limit exceeded. Please wait 60 seconds and try again. Original: {error_str[:200]}")
+            raise
 
     completion_time = time.time() - start_time
     return {"duration": completion_time, "code": full_response}

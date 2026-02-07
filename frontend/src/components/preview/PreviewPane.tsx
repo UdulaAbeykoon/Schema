@@ -15,6 +15,8 @@ import { useProjectStore } from "../../store/project-store";
 import { extractHtml } from "./extractHtml";
 import PreviewComponent from "./PreviewComponent";
 import { downloadCode } from "./download";
+import { useRef, useState } from "react";
+import { FigmaExportButton } from "./FigmaExportButton";
 
 function openInNewTab(code: string) {
   const newWindow = window.open("", "_blank");
@@ -34,6 +36,9 @@ interface Props {
 function PreviewPane({ doUpdate, reset, settings }: Props) {
   const { appState } = useAppStore();
   const { inputMode, head, commits } = useProjectStore();
+  const [activeTab, setActiveTab] = useState("desktop");
+  const desktopRef = useRef<HTMLIFrameElement>(null);
+  const mobileRef = useRef<HTMLIFrameElement>(null);
 
   const currentCommit = head && commits[head] ? commits[head] : "";
   const currentCode = currentCommit
@@ -47,7 +52,7 @@ function PreviewPane({ doUpdate, reset, settings }: Props) {
 
   return (
     <div className="ml-4">
-      <Tabs defaultValue="desktop">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="flex justify-between mr-8 mb-4">
           <div className="flex items-center gap-x-2">
             {appState === AppState.CODE_READY && (
@@ -67,6 +72,11 @@ function PreviewPane({ doUpdate, reset, settings }: Props) {
                 >
                   <FaDownload /> Download Code
                 </Button>
+
+                {/* Figma Export Button */}
+                {activeTab !== "code" && (
+                  <FigmaExportButton previewIframeRef={activeTab === "mobile" ? mobileRef : desktopRef} />
+                )}
               </>
             )}
           </div>
@@ -111,6 +121,7 @@ function PreviewPane({ doUpdate, reset, settings }: Props) {
         </div>
         <TabsContent value="desktop">
           <PreviewComponent
+            ref={desktopRef}
             code={previewCode}
             device="desktop"
             doUpdate={doUpdate}
@@ -118,16 +129,17 @@ function PreviewPane({ doUpdate, reset, settings }: Props) {
         </TabsContent>
         <TabsContent value="mobile">
           <PreviewComponent
+            ref={mobileRef}
             code={previewCode}
             device="mobile"
             doUpdate={doUpdate}
           />
         </TabsContent>
         <TabsContent value="code">
-          <CodeTab 
-            code={previewCode} 
-            setCode={() => {}} 
-            settings={settings} 
+          <CodeTab
+            code={previewCode}
+            setCode={() => { }}
+            settings={settings}
           />
         </TabsContent>
       </Tabs>

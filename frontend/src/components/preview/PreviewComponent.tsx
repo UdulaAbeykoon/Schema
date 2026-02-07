@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState, useImperativeHandle } from "react";
 import classNames from "classnames";
 import useThrottle from "../../hooks/useThrottle";
 import EditPopup from "../select-and-edit/EditPopup";
@@ -9,9 +9,13 @@ interface Props {
   doUpdate: (updateInstruction: string, selectedElement?: HTMLElement) => void;
 }
 
-function PreviewComponent({ code, device, doUpdate }: Props) {
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+const PreviewComponent = React.forwardRef<HTMLIFrameElement, Props>((props, ref) => {
+  const { code, device, doUpdate } = props;
+  const internalRef = useRef<HTMLIFrameElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  // Combine refs
+  useImperativeHandle(ref, () => internalRef.current as HTMLIFrameElement);
 
   // Don't update code more often than every 200ms.
   const throttledCode = useThrottle(code, 200);
@@ -27,7 +31,7 @@ function PreviewComponent({ code, device, doUpdate }: Props) {
   useEffect(() => {
     const updateScale = () => {
       const wrapper = wrapperRef.current;
-      const iframe = iframeRef.current;
+      const iframe = internalRef.current;
       if (!wrapper || !iframe) return;
 
       const viewportWidth = wrapper.clientWidth;
@@ -50,7 +54,7 @@ function PreviewComponent({ code, device, doUpdate }: Props) {
   }, [device]);
 
   useEffect(() => {
-    const iframe = iframeRef.current;
+    const iframe = internalRef.current;
     if (!iframe) return;
 
     const handleLoad = () => {
@@ -71,7 +75,7 @@ function PreviewComponent({ code, device, doUpdate }: Props) {
   }, [handleIframeClick]);
 
   useEffect(() => {
-    const iframe = iframeRef.current;
+    const iframe = internalRef.current;
     if (!iframe) return;
     if (iframe.srcdoc !== throttledCode) {
       iframe.srcdoc = throttledCode;
@@ -86,7 +90,7 @@ function PreviewComponent({ code, device, doUpdate }: Props) {
       >
         <iframe
           id={`preview-${device}`}
-          ref={iframeRef}
+          ref={internalRef}
           title="Preview"
           className={classNames(
             "border-[4px] border-black rounded-[20px] shadow-lg mx-auto",
@@ -98,13 +102,13 @@ function PreviewComponent({ code, device, doUpdate }: Props) {
         ></iframe>
         <EditPopup
           event={clickEvent}
-          iframeRef={iframeRef}
+          iframeRef={internalRef}
           doUpdate={doUpdate}
           scale={scale}
         />
       </div>
     </div>
   );
-}
+});
 
 export default PreviewComponent;

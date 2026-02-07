@@ -1,0 +1,16 @@
+{
+    "name": "Screenshot to Code Import",
+    "api": "1.0.0",
+    "main": "code.js",
+    "capabilities": [],
+    "editorType": [
+        "figma"
+    ],
+    "ui": "ui.html",
+    "networkAccess": {
+        "allowedDomains": [
+            "*"
+        ],
+        "reasoning": "This plugin downloads user-generated designs from a local or hosted backend server specified by the user's transfer ID."
+    }
+}

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <style>
+    body {
+      font-family: Inter, sans-serif;
+      padding: 20px;
+      margin: 0;
+    }
+
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    button {
+      background-color: #18A0FB;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    button:hover {
+      background-color: #0D8DE3;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>Import Design</h2>
+  <p>Enter the transfer ID from the web app:</p>
+  <input type="text" id="transferId" placeholder="e.g. 123-456">
+  <button id="importBtn">Import</button>
+  <div id="status" class="status"></div>
+
+  <script>
+    document.getElementById('importBtn').onclick = async () => {
+      const transferId = document.getElementById('transferId').value;
+      const status = document.getElementById('status');
+
+      if (!transferId) {
+        status.innerText = "Please enter a transfer ID";
+        return;
+      }
+
+      status.innerText = "Fetching design...";
+
+      try {
+        // Correct endpoint is /retrieve/, not /download/
+        const response = await fetch(`http://localhost:7001/api/figma/retrieve/${transferId}`);
+        if (!response.ok) {
+          throw new Error("Design not found or server error");
+        }
+
+        // Backend returns the layers array/object directly OR {error: ...}
+        const layers = await response.json();
+
+        if (layers.error) {
+          throw new Error(layers.error);
+        }
+
+        status.innerText = "Rendering in Figma...";
+        // Send the layers to the plugin code to capture
+        parent.postMessage({ pluginMessage: { type: 'import-design', layers: layers } }, '*');
+
+      } catch (e) {
+        console.error(e);
+        status.innerText = "Error: " + e.message;
+      }
+    };
+
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      // We can handle status updates from code.js if needed
+    };
+  </script>
+</body>
+
+</html>

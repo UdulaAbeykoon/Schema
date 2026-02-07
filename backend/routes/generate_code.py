@@ -384,15 +384,13 @@ class ModelSelectionStage:
                     "Video mode requires a Gemini API key. "
                     "Please add GEMINI_API_KEY to backend/.env or in the settings dialog"
                 )
-            return [Llm.GEMINI_3_FLASH_PREVIEW_MINIMAL, Llm.GEMINI_3_PRO_PREVIEW_HIGH]
+            return [Llm.GEMINI_2_5_FLASH]
 
         # Define models based on available API keys
         if gemini_api_key and anthropic_api_key:
-            # Temporary: Compare thinking models
+            # Use Gemini 2.5 Flash (confirmed working)
             models = [
-                Llm.GEMINI_3_FLASH_PREVIEW_HIGH,  # Flash HIGH thinking
-                Llm.GEMINI_3_PRO_PREVIEW_LOW,  # Pro LOW thinking
-                Llm.GEMINI_3_PRO_PREVIEW_HIGH,  # Pro HIGH thinking
+                Llm.GEMINI_2_5_FLASH,
                 Llm.CLAUDE_4_5_OPUS_2025_11_01,  # Claude Opus 4.5 with thinking
             ]
         elif openai_api_key and anthropic_api_key:
@@ -402,7 +400,8 @@ class ModelSelectionStage:
         elif openai_api_key:
             models = [Llm.GPT_4_1_2025_04_14]
         elif gemini_api_key:
-            models = [Llm.GEMINI_3_FLASH_PREVIEW_HIGH, Llm.GEMINI_3_PRO_PREVIEW_HIGH]
+            # Using Gemini 2.5 Flash (confirmed working)
+            models = [Llm.GEMINI_2_5_FLASH]
         else:
             raise Exception("No OpenAI, Anthropic, or Gemini API key found")
 

@@ -11,6 +11,11 @@ class Llm(Enum):
     CLAUDE_4_5_SONNET_2025_09_29 = "claude-sonnet-4-5-20250929"
     CLAUDE_4_5_OPUS_2025_11_01 = "claude-opus-4-5-20251101"
     # Gemini
+    GEMINI_2_5_FLASH = "gemini-2.5-flash"
+    GEMINI_1_5_FLASH = "gemini-1.5-flash"
+    GEMINI_1_5_PRO = "gemini-1.5-pro"
+    GEMINI_2_0_FLASH = "gemini-2.0-flash"
+    GEMINI_2_5_PRO = "gemini-2.5-pro"
     GEMINI_3_FLASH_PREVIEW_HIGH = "gemini-3-flash-preview (high thinking)"
     GEMINI_3_FLASH_PREVIEW_MINIMAL = "gemini-3-flash-preview (minimal thinking)"
     GEMINI_3_PRO_PREVIEW_HIGH = "gemini-3-pro-preview (high thinking)"
@@ -33,6 +38,11 @@ MODEL_PROVIDER: dict[Llm, str] = {
     Llm.CLAUDE_4_5_SONNET_2025_09_29: "anthropic",
     Llm.CLAUDE_4_5_OPUS_2025_11_01: "anthropic",
     # Gemini models
+    Llm.GEMINI_2_5_FLASH: "gemini",
+    Llm.GEMINI_1_5_FLASH: "gemini",
+    Llm.GEMINI_1_5_PRO: "gemini",
+    Llm.GEMINI_2_0_FLASH: "gemini",
+    Llm.GEMINI_2_5_PRO: "gemini",
     Llm.GEMINI_3_FLASH_PREVIEW_HIGH: "gemini",
     Llm.GEMINI_3_FLASH_PREVIEW_MINIMAL: "gemini",
     Llm.GEMINI_3_PRO_PREVIEW_HIGH: "gemini",
